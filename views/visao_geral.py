@@ -110,13 +110,13 @@ st.sidebar.caption("Visão Executiva — Colheita, Transporte e Logística")
 
 st.sidebar.markdown("### Fonte de dados")
 uploaded = st.sidebar.file_uploader(
-    "Substituir planilha padrão (opcional)", type=["xlsx"], key="uploader_home"
+    "Substituir pela planilha do Google Sheets (opcional, só nesta sessão)", type=["xlsx"], key="uploader_home"
 )
 if uploaded is not None:
     st.session_state["uploaded_file"] = uploaded
     st.sidebar.success("Usando arquivo enviado.")
 else:
-    st.sidebar.info("Usando arquivo padrão em /data/KPIS_NDB.xlsx")
+    st.sidebar.caption("Lendo direto do Google Sheets.")
 
 data = get_data()
 colheita = data.get("colheita", pd.DataFrame())

@@ -7,8 +7,9 @@ import streamlit as st
 import plotly.express as px
 
 from src.data_loader import get_data, kpi_card
+from src.theme import inject_theme
 
-st.set_page_config(page_title="Diesel | NDB", page_icon="⛽", layout="wide")
+inject_theme()
 st.title("⛽ Consumo de Diesel")
 
 data = get_data()

@@ -183,7 +183,10 @@ with filtro_col:
 #            % Variação TCH da COLHEITA — Total Área O.S.), 3 casas decimais.
 # ==========================================================================
 area_estimada = est_f["Área Estimada"].sum() if not est_f.empty else 0
-ton_estimada = prod["Produção (TON)"].sum() if not prod.empty else 0
+# Toneladas de Cana: soma das COLHEDORAS (fonte única) — evita duplicidade
+# de somar com outras abas que também carregam tonelagem (ex: Transporte,
+# AGR500), que representam a mesma cana movimentada em outra etapa do processo.
+ton_colhida = colhedora["Toneladas"].sum() if not colhedora.empty else 0
 area_colhida = col_f["Total Área O.S."].sum() if not col_f.empty else 0
 pct_colhida = (area_colhida / area_estimada * 100) if area_estimada else 0
 tch_estimado_medio = est_f["TCH Estimado"].mean() if not est_f.empty else 0
@@ -204,7 +207,7 @@ delta_ton_transp = period_delta(transporte, "Data", "Toneladas", agg="sum")
 delta_atr = period_delta(atr, "Data Produção", "ATR", agg="mean") if "ATR" in atr.columns else None
 
 r1 = st.columns(8)
-render_kpi(r1[0], "Toneladas Estimadas (t)", f"{ton_estimada:,.0f}", highlight=True)
+render_kpi(r1[0], "Toneladas de Cana (t)", f"{ton_colhida:,.0f}", highlight=True)
 render_kpi(r1[1], "Área Estimada (ha)", f"{area_estimada:,.3f}")
 render_kpi(r1[2], "Área Colhida (ha)", f"{area_colhida:,.3f}", delta=delta_area_colhida)
 render_kpi(r1[3], "TCH Estimado", f"{tch_estimado_medio:,.3f}")

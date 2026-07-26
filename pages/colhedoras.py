@@ -7,7 +7,7 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 
-from src.data_loader import get_data, kpi_card, frota_summary, milhar_config, add_pct_entrega, join_disponibilidade_diesel
+from src.data_loader import get_data, kpi_card, frota_summary, milhar_config, add_pct_entrega, join_disponibilidade_diesel, require_columns
 from src.theme import inject_theme
 
 inject_theme()
@@ -20,7 +20,10 @@ diesel = data.get("diesel")
 transporte = data.get("transporte", pd.DataFrame())
 
 if df is None or df.empty:
-    st.warning("Aba BASECOLHEDORA não encontrada ou vazia na planilha.")
+    st.warning("Aba BaseColhedoras não encontrada ou vazia na planilha.")
+    st.stop()
+
+if not require_columns(df, ["Mês", "FRENTE", "PROPRIETARIO", "Toneladas", "Total Cargas", "Média Carga", "Frota", "Data"], "BaseColhedoras"):
     st.stop()
 
 st.sidebar.header("Filtros — Colhedoras")

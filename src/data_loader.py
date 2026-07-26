@@ -10,6 +10,7 @@ A planilha é tratada como "banco de dados": cada aba = uma tabela.
 
 from io import BytesIO
 from pathlib import Path
+import re
 import pandas as pd
 import requests
 import streamlit as st
@@ -132,6 +133,26 @@ def load_excel(file_bytes_or_path) -> dict:
     if "transporte" in data and "EMPRESA" in data["transporte"].columns and "Empresa" not in data["transporte"].columns:
         data["transporte"] = data["transporte"].rename(columns={"EMPRESA": "Empresa"})
 
+    # Várias páginas filtram por "Mês" (abreviação em português: jan, fev...),
+    # mas nem toda aba (ex: BaseColhedoras) traz essa coluna pronta — deriva
+    # a partir de "Data" quando existir, pra não quebrar o filtro.
+    _MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+    for chave in ("transporte", "colhedora", "transbordo"):
+        if chave in data and "Mês" not in data[chave].columns and "Data" in data[chave].columns:
+            data[chave]["Mês"] = data[chave]["Data"].dt.month.map(
+                lambda m: _MESES_PT[m - 1] if pd.notna(m) else None
+            )
+
+    # A coluna que identifica o equipamento, na aba Disponibilidade, pode
+    # vir com nomes diferentes conforme a planilha — resolve para
+    # "Equipamento" a partir do primeiro candidato encontrado.
+    if "disponibilidade" in data and "Equipamento" not in data["disponibilidade"].columns:
+        col_equip = _find_column(
+            data["disponibilidade"], ["Equipamento", "Frota", "Código", "Ativo", "Máquina", "ID Equipamento", "Placa"]
+        )
+        if col_equip is not None:
+            data["disponibilidade"] = data["disponibilidade"].rename(columns={col_equip: "Equipamento"})
+
     return data
 
 
@@ -187,20 +208,27 @@ def _find_column(df: pd.DataFrame, candidatos: list) -> str | None:
     return None
 
 
+def _ano_do_nome_aba(nome: str) -> int | None:
+    """Extrai um ano de 4 dígitos (20xx) do nome da aba, ex: 'SAFRA 2026' -> 2026."""
+    m = re.search(r"(20\d{2})", str(nome))
+    return int(m.group(1)) if m else None
+
+
 @st.cache_data(ttl=600, show_spinner="Baixando histórico de safras...")
 def get_historico_safras() -> pd.DataFrame:
     """Lê a planilha dedicada de Histórico de Safras (link separado) e
     normaliza as colunas para Fazenda | Setor | Safra | Toneladas | TCH |
     Área Colhida. O ATR não costuma estar nessa planilha — é cruzado depois,
-    por Fazenda (+ Safra quando disponível), com a aba BASEATR da planilha
-    principal (ver enrich_historico_com_atr).
+    por Fazenda + Safra, com a aba BASEATR/BASEART da planilha principal
+    (ver enrich_historico_com_atr).
 
-    A escolha da aba correta é feita testando TODAS as abas da planilha e
-    escolhendo a que tiver mais colunas esperadas preenchidas com dados —
-    não confia em nome de aba nem cai cegamente na primeira aba, porque
-    planilhas reais costumam ter abas vazias/auxiliares antes da aba com os
-    dados de verdade. Devolve DataFrame vazio (sem lançar exceção) se a
-    planilha ainda estiver privada ou nenhuma aba bater com o padrão
+    A planilha tem UMA ABA POR SAFRA (ex: 2026, 2025, 2024, 2023) — a função
+    lê todas as abas cujo nome contém um ano de 4 dígitos, empilha (concat)
+    e preenche a coluna Safra com o ano do NOME da aba (ignora eventual
+    coluna "Safra" dentro da própria aba, pra não haver conflito). Se
+    nenhuma aba tiver nome de ano, cai no modo antigo: escolhe a única aba
+    com mais colunas esperadas preenchidas. Devolve DataFrame vazio (sem
+    lançar exceção) se a planilha ainda estiver privada ou fora do padrão
     esperado — a página trata isso com uma mensagem em vez de quebrar."""
     try:
         conteudo = _download_gsheet_bytes(GOOGLE_SHEET_HISTORICO_EXPORT_URL)
@@ -212,6 +240,36 @@ def get_historico_safras() -> pd.DataFrame:
     except Exception:
         return pd.DataFrame()
 
+    candidatos_sem_safra = {k: v for k, v in HISTORICO_COLUMN_CANDIDATES.items() if k != "Safra"}
+
+    abas_ano = []  # [(ano, df_normalizado)]
+    for nome_aba in xls.sheet_names:
+        ano = _ano_do_nome_aba(nome_aba)
+        if ano is None:
+            continue
+        try:
+            candidata = _clean_columns(pd.read_excel(xls, sheet_name=nome_aba)).dropna(how="all")
+        except Exception:
+            continue
+        if candidata.empty:
+            continue
+        score = sum(1 for c in candidatos_sem_safra.values() if _find_column(candidata, c) is not None)
+        if score < 2:
+            continue
+        renomeia = {}
+        for nome_final, candidatos in candidatos_sem_safra.items():
+            col = _find_column(candidata, candidatos)
+            if col is not None:
+                renomeia[col] = nome_final
+        candidata = candidata.rename(columns=renomeia)
+        candidata["Safra"] = ano
+        abas_ano.append((ano, candidata))
+
+    if abas_ano:
+        return pd.concat([df for _, df in sorted(abas_ano, key=lambda t: t[0], reverse=True)], ignore_index=True)
+
+    # Fallback: planilha não organizada por aba/ano — escolhe a única aba com
+    # mais colunas esperadas preenchidas, incluindo a coluna Safra dela mesma.
     melhor_df = None
     melhor_score = 0
     for nome_aba in xls.sheet_names:
@@ -226,9 +284,6 @@ def get_historico_safras() -> pd.DataFrame:
             melhor_score = score
             melhor_df = candidata
 
-    # Exige pelo menos 2 colunas reconhecidas (ex: Fazenda + Toneladas) para
-    # considerar a aba válida — evita pegar uma aba qualquer com dados
-    # irrelevantes que por acaso não estava totalmente vazia.
     if melhor_df is None or melhor_score < 2:
         return pd.DataFrame()
 
@@ -243,10 +298,13 @@ def get_historico_safras() -> pd.DataFrame:
 
 
 def enrich_historico_com_atr(historico: pd.DataFrame, atr: pd.DataFrame) -> pd.DataFrame:
-    """Cruza o histórico de safras com a aba BASEATR (planilha principal) por
-    Fazenda (+ Safra, quando as duas tabelas tiverem essa coluna), trazendo
-    o ATR para dentro do histórico. Se BASEATR não tiver Fazenda/ATR
-    identificáveis, devolve o histórico sem alterações."""
+    """Cruza o histórico de safras com a aba BASEATR/BASEART (planilha
+    principal, o 'outro link') por Fazenda + Safra. A Safra do lado do ATR é
+    derivada do ANO da 'Data Produção' (a aba BASEATR não tem coluna Safra
+    própria) — isso evita misturar leituras de ATR de anos diferentes na
+    mesma Fazenda numa média só, que é o que causava valor errado/duplicado.
+    Se BASEATR não tiver Fazenda/ATR identificáveis, devolve o histórico sem
+    alterações."""
     if historico is None or historico.empty or atr is None or atr.empty:
         return historico
 
@@ -255,20 +313,59 @@ def enrich_historico_com_atr(historico: pd.DataFrame, atr: pd.DataFrame) -> pd.D
     if col_fazenda_atr is None or col_atr is None or "Fazenda" not in historico.columns:
         return historico
 
-    chaves = [col_fazenda_atr]
-    left_chaves = ["Fazenda"]
-    col_safra_atr = _find_column(atr, ["Safra"])
-    if col_safra_atr is not None and "Safra" in historico.columns:
-        chaves.append(col_safra_atr)
-        left_chaves.append("Safra")
+    atr_trab = atr[[col_fazenda_atr, col_atr]].rename(columns={col_fazenda_atr: "Fazenda", col_atr: "ATR"})
 
-    atr_resumo = (
-        atr[chaves + [col_atr]]
-        .rename(columns={col_fazenda_atr: "Fazenda", col_atr: "ATR"} | ({col_safra_atr: "Safra"} if col_safra_atr else {}))
-        .groupby(left_chaves, as_index=False)["ATR"]
-        .mean()
-    )
-    return historico.merge(atr_resumo, on=left_chaves, how="left")
+    col_data_atr = _find_column(atr, ["Data Produção", "Data Producao", "Data"])
+    usar_safra = False
+    if col_data_atr is not None and "Safra" in historico.columns:
+        datas = pd.to_datetime(atr[col_data_atr], errors="coerce", dayfirst=True)
+        if datas.notna().any():
+            atr_trab = atr_trab.assign(Safra=datas.dt.year)
+            usar_safra = True
+
+    chaves = ["Fazenda", "Safra"] if usar_safra else ["Fazenda"]
+    atr_resumo = atr_trab.dropna(subset=chaves).groupby(chaves, as_index=False)["ATR"].mean()
+
+    historico = historico.copy()
+    if usar_safra:
+        atr_resumo["Safra"] = pd.to_numeric(atr_resumo["Safra"], errors="coerce")
+        historico["Safra"] = pd.to_numeric(historico["Safra"], errors="coerce")
+
+    return historico.merge(atr_resumo, on=chaves, how="left")
+
+
+def _agg_historico(historico: pd.DataFrame, by: str) -> pd.DataFrame:
+    """Agrega o histórico de safras por `by` ('Fazenda' ou 'Safra'):
+    Toneladas (soma), TCH (média), Área Colhida (soma), ATR (média, quando
+    disponível). Só agrega as colunas que realmente existirem."""
+    if historico is None or historico.empty or by not in historico.columns:
+        return pd.DataFrame()
+    agg = {}
+    if "Toneladas" in historico.columns:
+        agg["Toneladas"] = "sum"
+    if "TCH" in historico.columns:
+        agg["TCH"] = "mean"
+    if "Área Colhida" in historico.columns:
+        agg["Área Colhida"] = "sum"
+    if "ATR" in historico.columns:
+        agg["ATR"] = "mean"
+    if not agg:
+        return pd.DataFrame()
+    return historico.groupby(by, as_index=False).agg(agg)
+
+
+def agrupar_historico_por_fazenda(historico: pd.DataFrame) -> pd.DataFrame:
+    """Visão padrão da página Histórico de Safras: uma linha por Fazenda —
+    Toneladas (soma), TCH (média), Área Colhida (soma), ATR (média)."""
+    out = _agg_historico(historico, "Fazenda")
+    return out.sort_values("Toneladas", ascending=False) if not out.empty else out
+
+
+def agrupar_historico_por_safra(historico: pd.DataFrame) -> pd.DataFrame:
+    """Quebra ano a ano (Safra) — usada quando uma Fazenda específica é
+    escolhida na busca, para mostrar 2026/2025/2024/2023... lado a lado."""
+    out = _agg_historico(historico, "Safra")
+    return out.sort_values("Safra", ascending=False) if not out.empty else out
 
 
 # Nomes possíveis da coluna de cidade/município na aba PROD./COLHEITA/ESTIMATIVA.
@@ -390,6 +487,20 @@ def build_mapa_estado(mapa_colheita_df: pd.DataFrame, cidade_uf_map: dict) -> pd
     if df.empty:
         return pd.DataFrame(columns=["UF", "Toneladas Colhidas", "Área Estimada (ha)"])
     return df.groupby("UF", as_index=False)[["Toneladas Colhidas", "Área Estimada (ha)"]].sum()
+
+
+def require_columns(df: pd.DataFrame, colunas: list, aba_label: str) -> bool:
+    """Confere se `df` tem todas as `colunas`; se faltar alguma, mostra uma
+    mensagem amigável (em vez do app quebrar com KeyError) e devolve False —
+    a página deve fazer `if not require_columns(...): st.stop()` em seguida."""
+    faltando = [c for c in colunas if c not in df.columns]
+    if faltando:
+        st.warning(
+            f"A aba {aba_label} não tem a(s) coluna(s) esperada(s): {', '.join(faltando)}. "
+            f"Colunas disponíveis: {', '.join(df.columns.astype(str))}."
+        )
+        return False
+    return True
 
 
 def frota_summary(df: pd.DataFrame, group_cols: list, date_col: str = "Data",

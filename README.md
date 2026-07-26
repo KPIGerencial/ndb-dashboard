@@ -1,23 +1,28 @@
 # Dashboard NDB — Colheita, Transporte, Transbordo e Estimativas
 
-Dashboard interativo (estilo Power BI) construído em **Python + Streamlit**, que lê a planilha
-`KPIS_-_NDB.xlsx` diretamente como fonte de dados — sem necessidade de banco de dados externo.
+Dashboard interativo (estilo Power BI) construído em **Python + Streamlit**, com menu de
+navegação no topo. Os dados vêm **exclusivamente do Google Sheets** (dois links — planilha
+principal + histórico de safras) — não há nenhuma planilha `.xlsx` embutida no projeto.
 
 ## Estrutura do projeto
 
 ```
 ndb_dashboard/
-├── app.py                          # Visão Executiva (Home + Colheita Analítico Geral unificados)
+├── app.py                        # Router: menu no topo (st.navigation position="top")
+├── views/
+│   ├── visao_geral.py             # Visão Executiva (página padrão)
+│   └── historico_safras.py        # Histórico de Safras (planilha separada, uma aba por ano)
 ├── pages/
-│   ├── 2_🚛_Transporte.py
-│   ├── 3_🔄_Transbordo.py
-│   ├── 4_⚙️_Disponibilidade.py
-│   ├── 5_⛽_Diesel.py
-│   └── 6_🚜_Colhedoras.py
+│   ├── transporte.py
+│   ├── transbordo.py
+│   ├── disponibilidade.py
+│   ├── diesel.py
+│   └── colhedoras.py
 ├── src/
-│   └── data_loader.py         # Camada única de leitura/cache do Excel + helpers de resumo por frota
-├── data/
-│   └── KPIS_NDB.xlsx          # Planilha usada como "banco de dados"
+│   ├── data_loader.py         # Camada única de leitura/cache do Google Sheets + helpers
+│   ├── weather.py             # Previsão do tempo (Open-Meteo) — grid na sidebar
+│   ├── map_view.py            # Mapa por estado (IBGE) com fallback por fazenda
+│   └── theme.py               # CSS compartilhado (visual profissional consistente)
 ├── .streamlit/config.toml     # Tema visual (dark, inspirado nos modelos de referência)
 └── requirements.txt
 ```
@@ -43,20 +48,35 @@ ndb_dashboard/
    ```
 5. O navegador abrirá automaticamente em `http://localhost:8501`.
 
-## Atualizando os dados
+## Fonte de dados — só pelo link
 
-- Para usar uma planilha mais recente sem mexer no código, basta enviar o novo arquivo `.xlsx`
-  pelo uploader na barra lateral — o dashboard recarrega tudo automaticamente.
-- Para trocar o arquivo padrão, substitua `data/KPIS_NDB.xlsx` mantendo o mesmo nome (ou
-  ajuste `DEFAULT_PATH` em `src/data_loader.py`).
-- As abas lidas hoje são: `BASETRANSPORTE`, `BASECOLHEDORA`, `BASETRANSBORDO`,
-  `DISPONIBILIDADE`, `BASEDIESEL`, `COLHEITA`, `ESTIMATIVA`, `Mes`, `BASEEMPRESA`.
-  Se a planilha ganhar novas abas ou colunas, adicione/ajuste em `src/data_loader.py`
-  (dicionário `SHEETS`) — o resto do app não precisa mudar.
+O app NÃO tem nenhum `.xlsx` embutido. Os dados vêm de dois links do Google Sheets, fixos
+em `src/data_loader.py`:
+
+- `GOOGLE_SHEET_ID` — planilha principal (Transporte, Colhedoras, Transbordo, Disponibilidade,
+  Diesel, Colheita, Estimativa, ATR, Cidades).
+- `GOOGLE_SHEET_HISTORICO_ID` — histórico de safras (uma aba por ano, ex: 2026, 2025, 2024, 2023).
+
+**Os dois precisam estar compartilhados como "Qualquer pessoa com o link" (Leitor)** —
+Compartilhar → Acesso geral, no Google Sheets. Sem isso, o app para com uma mensagem de erro
+em vez de mostrar dado desatualizado (não há mais fallback silencioso para arquivo local).
+
+Se precisar testar com um arquivo pontual sem mexer no Sheets, ainda dá pra enviar um `.xlsx`
+pelo uploader na barra lateral da Visão Geral — vale só para aquela sessão, não fica salvo
+no projeto.
+
+Para trocar de planilha, edite `GOOGLE_SHEET_ID`/`GOOGLE_SHEET_HISTORICO_ID` em
+`src/data_loader.py` com o ID novo (a parte do link entre `/d/` e `/edit`).
+
+As abas lidas hoje (nomes com variações de caixa já são reconhecidos automaticamente — ver
+dicionário `SHEETS` em `src/data_loader.py`): `BaseTransporte`, `BaseColhedoras`,
+`BaseTransbordo`, `Disponibilidade`, `BASEDIESEL`, `COLHEITA`, `ESTIMATIVA`, `Mes`,
+`BASEEMPRESA`, `AGR500` (produção), `BASEART`/`BASEATR` (ATR), `CIDADES` (Cidade x UF).
+Se a planilha ganhar novas abas ou colunas, ajuste em `src/data_loader.py` — o resto do app
+não precisa mudar.
 
 ## Próximos passos sugeridos
 
 - Autenticação simples (`streamlit-authenticator`) se o dashboard for para vários usuários.
-- Agendar atualização automática do arquivo Excel (ex: sincronizar com OneDrive/SharePoint).
 - Publicar internamente via Streamlit Community Cloud, ou em servidor próprio com
   `streamlit run app.py --server.port 8501 --server.address 0.0.0.0`.

@@ -6,16 +6,20 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 import streamlit as st
 import plotly.express as px
 
-from src.data_loader import get_data, kpi_card
+from src.data_loader import get_data, kpi_card, require_columns
+from src.theme import inject_theme
 
-st.set_page_config(page_title="Disponibilidade | NDB", page_icon="⚙️", layout="wide")
+inject_theme()
 st.title("⚙️ Disponibilidade Mecânica")
 
 data = get_data()
 df = data.get("disponibilidade")
 
 if df is None or df.empty:
-    st.warning("Aba DISPONIBILIDADE não encontrada ou vazia na planilha.")
+    st.warning("Aba Disponibilidade não encontrada ou vazia na planilha.")
+    st.stop()
+
+if not require_columns(df, ["Tipo Equipamento", "Frente", "Disponibilidade Mecânica", "Equipamento", "Operador"], "Disponibilidade"):
     st.stop()
 
 st.sidebar.header("Filtros — Disponibilidade")

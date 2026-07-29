@@ -1,5 +1,5 @@
 """
-app.py — Ponto de entrada do Dashboard NDB.
+app.py — Ponto de entrada do Mentor Agro ERP.
 
 Router com menu de navegação no TOPO da página (st.navigation position="top"),
 em vez do menu automático na sidebar — pedido explícito para deixar o app
@@ -19,7 +19,7 @@ import streamlit as st
 # st.set_page_config() precisa ser o PRIMEIRO comando st.* do script —
 # antes de qualquer import que possa, indiretamente, chamar st.*.
 st.set_page_config(
-    page_title="NDB | Visão Executiva",
+    page_title="Mentor Agro ERP | Visão Executiva",
     page_icon="🌾",
     layout="wide",
 )

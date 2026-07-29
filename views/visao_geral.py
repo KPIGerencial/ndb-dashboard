@@ -1,5 +1,5 @@
 """
-views/visao_geral.py — Visão Executiva do Dashboard NDB (página padrão).
+views/visao_geral.py — Visão Executiva do Mentor Agro ERP (página padrão).
 Une a antiga Home com o antigo "Colheita Analítico Geral" numa única página,
 no estilo dos modelos de referência (cartões de KPI + gráficos + acesso
 rápido às demais páginas via menu superior).
@@ -19,6 +19,7 @@ from src.data_loader import (
     build_mapa_colheita,
     get_cidade_uf_map,
     build_mapa_estado,
+    tch_previsto_realizado_por_estagio,
 )
 from src.weather import render_weather_sidebar
 from src.map_view import render_mapa_colheita, render_mapa_estado
@@ -105,18 +106,18 @@ def render_kpi(col, label, value, delta=None, highlight=False):
 
 
 # ---------- Barra lateral: fonte de dados + filtros ----------
-st.sidebar.title("🌾 NDB Dashboard")
+st.sidebar.title("🌾 Mentor Agro ERP")
 st.sidebar.caption("Visão Executiva — Colheita, Transporte e Logística")
 
 st.sidebar.markdown("### Fonte de dados")
 uploaded = st.sidebar.file_uploader(
-    "Substituir pela planilha do Google Sheets (opcional, só nesta sessão)", type=["xlsx"], key="uploader_home"
+    "Substituir pelas planilhas do Dropbox (opcional, só nesta sessão)", type=["xlsx"], key="uploader_home"
 )
 if uploaded is not None:
     st.session_state["uploaded_file"] = uploaded
     st.sidebar.success("Usando arquivo enviado.")
 else:
-    st.sidebar.caption("Lendo direto do Google Sheets.")
+    st.sidebar.caption("Lendo direto do Dropbox.")
 
 data = get_data()
 colheita = data.get("colheita", pd.DataFrame())
@@ -183,10 +184,10 @@ with filtro_col:
 #            % Variação TCH da COLHEITA — Total Área O.S.), 3 casas decimais.
 # ==========================================================================
 area_estimada = est_f["Área Estimada"].sum() if not est_f.empty else 0
-# Toneladas de Cana: soma das COLHEDORAS (fonte única) — evita duplicidade
-# de somar com outras abas que também carregam tonelagem (ex: Transporte,
-# AGR500), que representam a mesma cana movimentada em outra etapa do processo.
-ton_colhida = colhedora["Toneladas"].sum() if not colhedora.empty else 0
+# Toneladas de Cana: soma da coluna "Ton. Prevista (t)" da aba de Estimativas
+# (BASE-ESTIMATIVAS) — pedido explícito, substitui a soma antiga por
+# Colhedora.
+ton_colhida = est_f["Ton. Prevista (t)"].sum() if not est_f.empty and "Ton. Prevista (t)" in est_f.columns else 0
 area_colhida = col_f["Total Área O.S."].sum() if not col_f.empty else 0
 pct_colhida = (area_colhida / area_estimada * 100) if area_estimada else 0
 tch_estimado_medio = est_f["TCH Estimado"].mean() if not est_f.empty else 0
@@ -319,6 +320,31 @@ with c6:
             st.info("Dados insuficientes para este gráfico.")
     else:
         st.info("Aguardando aba PROD na planilha (ver observação).")
+
+# ==========================================================================
+# BLOCO 2.5 — Realizado e Previsto
+# ==========================================================================
+st.subheader("Realizado e Previsto")
+tch_estagio_df = tch_previsto_realizado_por_estagio(prod)
+if not tch_estagio_df.empty:
+    value_cols_estagio = [c for c in ["TCH Previsto", "TCH Realizado"] if c in tch_estagio_df.columns]
+    fig_estagio = px.bar(
+        tch_estagio_df, x="Estágio da Cultura", y=value_cols_estagio,
+        barmode="group", text_auto=".1f", template="plotly_dark",
+    )
+    fig_estagio.update_traces(textposition="outside")
+    fig_estagio.update_layout(
+        height=CHART_H, margin=dict(t=5, b=5, l=5, r=5),
+        legend_title="", legend=dict(orientation="h", y=1.15),
+        title_text="TCH Previsto e Realizado por Estágio",
+    )
+    st.plotly_chart(fig_estagio, use_container_width=True)
+else:
+    st.info(
+        "Aguardando confirmação das colunas de TCH Previsto/Realizado por Estágio na "
+        "aba AGR500 (ver ESTAGIO_CANDIDATES/TCH_PREVISTO_CANDIDATES/TCH_REALIZADO_CANDIDATES "
+        "em src/data_loader.py)."
+    )
 
 # ---------- Consumo Lts/Ton — Colhedoras: barras verticais, full-width ----------
 # Full-width porque são muitos equipamentos; rótulos do eixo inclinados para não sobrepor.

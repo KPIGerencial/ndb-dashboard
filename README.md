@@ -1,8 +1,8 @@
-# Dashboard NDB — Colheita, Transporte, Transbordo e Estimativas
+# Mentor Agro ERP — Colheita, Transporte, Transbordo e Estimativas
 
 Dashboard interativo (estilo Power BI) construído em **Python + Streamlit**, com menu de
-navegação no topo. Os dados vêm **exclusivamente do Google Sheets** (dois links — planilha
-principal + histórico de safras) — não há nenhuma planilha `.xlsx` embutida no projeto.
+navegação no topo. Os dados vêm **exclusivamente do Dropbox** (vários links, um `.xlsx` por
+tabela/grupo de tabelas) — não há nenhuma planilha embutida no projeto.
 
 ## Estrutura do projeto
 
@@ -19,7 +19,7 @@ ndb_dashboard/
 │   ├── diesel.py
 │   └── colhedoras.py
 ├── src/
-│   ├── data_loader.py         # Camada única de leitura/cache do Google Sheets + helpers
+│   ├── data_loader.py         # Camada única de leitura/cache do Dropbox + helpers
 │   ├── weather.py             # Previsão do tempo (Open-Meteo) — grid na sidebar
 │   ├── map_view.py            # Mapa por estado (IBGE) com fallback por fazenda
 │   └── theme.py               # CSS compartilhado (visual profissional consistente)
@@ -50,33 +50,33 @@ ndb_dashboard/
 
 ## Fonte de dados — só pelo link
 
-O app NÃO tem nenhum `.xlsx` embutido. Os dados vêm de dois links do Google Sheets, fixos
-em `src/data_loader.py`:
+O app NÃO tem nenhum `.xlsx` embutido. Os dados vêm de vários links do Dropbox, fixos em
+`src/data_loader.py` (dicionário `DROPBOX_URLS` + `DROPBOX_HISTORICO_URL`):
 
-- `GOOGLE_SHEET_ID` — planilha principal (Transporte, Colhedoras, Transbordo, Disponibilidade,
-  Diesel, Colheita, Estimativa, ATR, Cidades).
-- `GOOGLE_SHEET_HISTORICO_ID` — histórico de safras (uma aba por ano, ex: 2026, 2025, 2024, 2023).
+- `KPIS-COLHEITA-TRANSPORTE-OK.xlsx` — planilha principal (Transporte, Colhedoras,
+  Transbordo, Disponibilidade, Diesel, Colheita, Meses, Empresas).
+- `AGR500.xlsx` — produção (aba AGR500).
+- `BASE-ART.xlsx` — ATR (aba BASEATR/BASEART).
+- `CIDADES.xlsx` — cruzamento Cidade x Estado (UF).
+- `BASE-ESTIMATIVAS.xlsx` — estimativas de safra.
+- `SAFRAS-COLHEITA.xlsx` — histórico de safras (uma aba por ano, ex: 2026, 2025, 2024, 2023).
 
-**Os dois precisam estar compartilhados como "Qualquer pessoa com o link" (Leitor)** —
-Compartilhar → Acesso geral, no Google Sheets. Sem isso, o app para com uma mensagem de erro
-em vez de mostrar dado desatualizado (não há mais fallback silencioso para arquivo local).
+**Todos os links precisam continuar compartilhados publicamente** (o link "com acesso
+geral" do Dropbox, o parâmetro `?dl=0` na URL) — o app converte automaticamente para
+download direto (`dl=1`). Sem isso, o app para com uma mensagem de erro em vez de mostrar
+dado desatualizado (não há fallback silencioso para arquivo local).
 
-Se precisar testar com um arquivo pontual sem mexer no Sheets, ainda dá pra enviar um `.xlsx`
-pelo uploader na barra lateral da Visão Geral — vale só para aquela sessão, não fica salvo
-no projeto.
+Se precisar testar com um arquivo pontual sem mexer no Dropbox, ainda dá pra enviar um
+`.xlsx` pelo uploader na barra lateral da Visão Geral — vale só para aquela sessão, não
+fica salvo no projeto.
 
-Para trocar de planilha, edite `GOOGLE_SHEET_ID`/`GOOGLE_SHEET_HISTORICO_ID` em
-`src/data_loader.py` com o ID novo (a parte do link entre `/d/` e `/edit`).
+Para trocar algum link, edite `DROPBOX_URLS`/`DROPBOX_HISTORICO_URL` em
+`src/data_loader.py` com a URL nova (o `rlkey` muda quando o arquivo é recompartilhado).
 
 As abas lidas hoje (nomes com variações de caixa já são reconhecidos automaticamente — ver
 dicionário `SHEETS` em `src/data_loader.py`): `BaseTransporte`, `BaseColhedoras`,
 `BaseTransbordo`, `Disponibilidade`, `BASEDIESEL`, `COLHEITA`, `ESTIMATIVA`, `Mes`,
-`BASEEMPRESA`, `AGR500` (produção), `BASEART`/`BASEATR` (ATR), `CIDADES` (Cidade x UF).
+`BASEEMPRESA`, `AGR500` (produção), `BASEART`/`BASEATR` (ATR — a coluna de Fazenda nessa
+aba pode vir como `Fundo Agrícola`, tratada como equivalente), `CIDADES` (Cidade x UF).
 Se a planilha ganhar novas abas ou colunas, ajuste em `src/data_loader.py` — o resto do app
 não precisa mudar.
-
-## Próximos passos sugeridos
-
-- Autenticação simples (`streamlit-authenticator`) se o dashboard for para vários usuários.
-- Publicar internamente via Streamlit Community Cloud, ou em servidor próprio com
-  `streamlit run app.py --server.port 8501 --server.address 0.0.0.0`.

@@ -19,7 +19,7 @@ if df is None or df.empty:
     st.warning("Aba Disponibilidade não encontrada ou vazia na planilha.")
     st.stop()
 
-if not require_columns(df, ["Tipo Equipamento", "Frente", "Disponibilidade Mecânica", "Equipamento", "Operador"], "Disponibilidade"):
+if not require_columns(df, ["Equipamento", "Tipo Equipamento", "Frente", "Disponibilidade Mecânica"], "Disponibilidade"):
     st.stop()
 
 st.sidebar.header("Filtros — Disponibilidade")
@@ -31,10 +31,9 @@ f_frente = st.sidebar.multiselect("Frente", frentes, default=frentes)
 
 filtrado = df[df["Tipo Equipamento"].isin(f_tipo) & df["Frente"].isin(f_frente)]
 
-c1, c2, c3 = st.columns(3)
+c1, c2 = st.columns(2)
 kpi_card(c1, "Disp. Mecânica Média", f"{filtrado['Disponibilidade Mecânica'].mean()*100:,.1f}%")
 kpi_card(c2, "Equipamentos", f"{filtrado['Equipamento'].nunique():,}")
-kpi_card(c3, "Operadores", f"{filtrado['Operador'].nunique():,}")
 
 st.divider()
 
@@ -46,7 +45,7 @@ with col_a:
     fig = px.bar(g, x="Tipo Equipamento", y="Disponibilidade Mecânica", text="Disponibilidade Mecânica")
     fig.update_traces(texttemplate="%{text}%", textposition="outside")
     fig.update_layout(margin=dict(t=10, b=10, l=10, r=10))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 with col_b:
     st.subheader("Disponibilidade Média por Frente")
@@ -56,8 +55,12 @@ with col_b:
     fig2 = px.bar(g2, x="Frente", y="Disponibilidade Mecânica", text="Disponibilidade Mecânica")
     fig2.update_traces(texttemplate="%{text}%", textposition="outside")
     fig2.update_layout(margin=dict(t=10, b=10, l=10, r=10))
-    st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width='stretch')
 
 st.divider()
-st.subheader("Detalhe por Equipamento/Operador")
-st.dataframe(filtrado, use_container_width=True, hide_index=True)
+st.subheader("Detalhe por Equipamento")
+st.dataframe(
+    filtrado[["Equipamento", "Tipo Equipamento", "Frente", "Disponibilidade Mecânica"]],
+        width='stretch',
+    hide_index=True,
+)

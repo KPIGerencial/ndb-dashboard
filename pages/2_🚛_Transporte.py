@@ -50,14 +50,14 @@ with col_a:
     fig = px.bar(g, x="Toneladas", y="Empresa", orientation="h", text="Toneladas")
     fig.update_traces(texttemplate="%{text:,.0f}", textposition="outside")
     fig.update_layout(margin=dict(t=10, b=10, l=10, r=10), yaxis=dict(autorange="reversed"))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 with col_b:
     st.subheader("Evolução Diária de Toneladas")
     g2 = filtrado.groupby("Data", as_index=False)["Toneladas"].sum()
     fig2 = px.area(g2, x="Data", y="Toneladas")
     fig2.update_layout(margin=dict(t=10, b=10, l=10, r=10))
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(fig2, width='stretch')
 
 st.divider()
 st.subheader("Entrega de Cana por Empresa")
@@ -72,7 +72,7 @@ detalhe_empresa = detalhe_empresa[
 ]
 st.dataframe(
     detalhe_empresa,
-    use_container_width=True,
+    width='stretch',
     hide_index=True,
     column_config=milhar_config(["Ton dia", "Ton dia Anterior", "Acumulado (t)", "% Entrega", "Distância Média (km)"], decimals=2),
 )
@@ -90,7 +90,7 @@ agrupada = build_grouped_table(
 )
 st.dataframe(
     agrupada,
-    use_container_width=True,
+    width='stretch',
     hide_index=True,
     column_config=milhar_config(["Ton dia", "Ton dia Anterior", "Acumulado (t)", "% Entrega"], decimals=2),
 )

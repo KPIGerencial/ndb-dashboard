@@ -33,7 +33,7 @@ filtrado = df[
 ]
 
 c1, c2, c3, c4 = st.columns(4)
-kpi_card(c1, "Toneladas de Cana", f"{filtrado['Ton. Cana'].sum():,.0f}")
+kpi_card(c1, "Toneladas de Cana", f"{filtrado['Ton. Cana'].sum() / 2:,.0f}")
 kpi_card(c2, "Litros Consumidos", f"{filtrado['Lt'].sum():,.0f}")
 kpi_card(c3, "Litros/Ton. Médio", f"{filtrado['Lt/ton'].mean():,.3f}")
 kpi_card(c4, "Equipamentos", f"{filtrado['Equip.'].nunique():,}")
@@ -47,7 +47,7 @@ with col_a:
     fig = px.bar(g, x="Frente", y="Lt/ton", text="Lt/ton")
     fig.update_traces(texttemplate="%{text:.3f}", textposition="outside")
     fig.update_layout(margin=dict(t=10, b=10, l=10, r=10))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 with col_b:
     st.subheader("Litros/Ton. por Tipo de Equipamento")
@@ -55,9 +55,9 @@ with col_b:
     fig2 = px.bar(g2, x="TIPO", y="Lt/ton", text="Lt/ton")
     fig2.update_traces(texttemplate="%{text:.3f}", textposition="outside")
     fig2.update_layout(margin=dict(t=10, b=10, l=10, r=10))
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(fig2, width='stretch')
 
 st.divider()
 st.subheader("Consumo por Equipamento")
 rank = filtrado.sort_values("Lt/ton", ascending=False)
-st.dataframe(rank, use_container_width=True, hide_index=True)
+st.dataframe(rank, width='stretch', hide_index=True)

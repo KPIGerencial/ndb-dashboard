@@ -45,14 +45,14 @@ with col_a:
     fig = px.bar(g, x="Frente", y="Toneladas", text="Toneladas")
     fig.update_traces(texttemplate="%{text:,.0f}", textposition="outside")
     fig.update_layout(margin=dict(t=10, b=10, l=10, r=10))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 with col_b:
     st.subheader("Evolução Diária de Toneladas")
     g2 = filtrado.groupby("Data", as_index=False)["Toneladas"].sum()
     fig2 = px.line(g2, x="Data", y="Toneladas", markers=True)
     fig2.update_layout(margin=dict(t=10, b=10, l=10, r=10))
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(fig2, width='stretch')
 
 st.divider()
 st.subheader("Entrega de Cana (ton) por Frente")
@@ -61,7 +61,7 @@ frente_resumo = add_pct_entrega(frente_resumo)
 frente_resumo = frente_resumo[["Frente", "Ton dia", "Ton dia Anterior", "Acumulado (t)", "% Entrega"]]
 st.dataframe(
     frente_resumo,
-    use_container_width=True,
+    width='stretch',
     hide_index=True,
     column_config=milhar_config(["Ton dia", "Ton dia Anterior", "Acumulado (t)", "% Entrega"], decimals=2),
 )
@@ -73,7 +73,7 @@ detalhe = join_disponibilidade_diesel(detalhe, "Frota", disponibilidade, diesel,
 detalhe = detalhe[["Frota", "Frente", "Ton dia", "Acumulado (t)", "Disponibilidade Mecânica", "Lt/ton"]]
 st.dataframe(
     detalhe,
-    use_container_width=True,
+    width='stretch',
     hide_index=True,
     column_config=milhar_config(["Ton dia", "Acumulado (t)", "Disponibilidade Mecânica", "Lt/ton"], decimals=2),
 )

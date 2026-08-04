@@ -80,3 +80,9 @@ dicionário `SHEETS` em `src/data_loader.py`): `BaseTransporte`, `BaseColhedoras
 aba pode vir como `Fundo Agrícola`, tratada como equivalente), `CIDADES` (Cidade x UF).
 Se a planilha ganhar novas abas ou colunas, ajuste em `src/data_loader.py` — o resto do app
 não precisa mudar.
+
+## Próximos passos sugeridos
+
+- Autenticação simples (`streamlit-authenticator`) se o dashboard for para vários usuários.
+- Publicar internamente via Streamlit Community Cloud, ou em servidor próprio com
+  `streamlit run app.py --server.port 8501 --server.address 0.0.0.0`.

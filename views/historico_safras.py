@@ -146,7 +146,7 @@ if fazenda_escolhida != "Todas as Fazendas":
         fig.update_traces(textposition="outside")
         fig.update_xaxes(type="category")
         fig.update_layout(height=280, margin=dict(t=10, b=10, l=10, r=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with col_b:
         st.subheader("TCH Médio por Safra")
@@ -154,7 +154,7 @@ if fazenda_escolhida != "Todas as Fazendas":
         fig2 = px.line(g2, x="Safra", y="TCH", markers=True, template="plotly_dark")
         fig2.update_xaxes(type="category")
         fig2.update_layout(height=280, margin=dict(t=10, b=10, l=10, r=10))
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width='stretch')
 
     with col_c:
         st.subheader("TAH por Safra")
@@ -165,7 +165,7 @@ if fazenda_escolhida != "Todas as Fazendas":
             fig3.update_traces(textposition="outside")
             fig3.update_xaxes(type="category")
             fig3.update_layout(height=280, margin=dict(t=10, b=10, l=10, r=10))
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, width='stretch')
         else:
             st.info("Sem ATR cruzado para calcular o TAH.")
 
@@ -174,7 +174,7 @@ if fazenda_escolhida != "Todas as Fazendas":
     colunas_tabela = ["Safra", "Área Colhida", "Toneladas", "TCH"] + (["TAH"] if "TAH" in por_safra.columns else [])
     st.dataframe(
         por_safra[colunas_tabela],
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         column_config=milhar_config(["Área Colhida", "Toneladas", "TCH", "TAH"], decimals=2),
     )
@@ -182,7 +182,7 @@ if fazenda_escolhida != "Todas as Fazendas":
     with st.expander("Detalhe por Setor, dentro desta Fazenda"):
         st.dataframe(
             dados_fazenda.sort_values("Safra", ascending=False),
-            use_container_width=True,
+            width='stretch',
             hide_index=True,
             column_config=milhar_config(["Toneladas", "TCH", "Área Colhida", "ATR"], decimals=2),
         )
@@ -241,7 +241,7 @@ else:
         fig = px.bar(top10, x="Fazenda", y="Toneladas", text_auto=",.0f", template="plotly_dark")
         fig.update_traces(textposition="outside")
         fig.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with col_b:
         st.subheader("Toneladas Total por Safra")
@@ -250,7 +250,7 @@ else:
             fig2.update_traces(textposition="outside")
             fig2.update_xaxes(type="category")
             fig2.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10))
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, width='stretch')
 
     st.divider()
     st.subheader("Todas as Fazendas — agrupado pelas safras selecionadas")
@@ -258,7 +258,7 @@ else:
     colunas_tabela = ["Fazenda", "Área Colhida", "Toneladas", "TCH"] + (["TAH"] if "TAH" in agrupado.columns else [])
     st.dataframe(
         agrupado[colunas_tabela],
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         column_config=milhar_config(["Área Colhida", "Toneladas", "TCH", "TAH"], decimals=2),
     )
